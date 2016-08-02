@@ -6,6 +6,10 @@
         {
             "name": "Nick G. Lavrik",
             "email": "nick.lavrik@gmail.com"
+        },
+        {
+            "name": "Creative WebMedia Pvt. Ltd",
+            "email": "office@creative-media.com.ua"
         }
     ],
     "require": {
@@ -16,7 +20,7 @@
         "phpunit/phpunit": "@stable"
     },
     "autoload": {
-        "psr-0": { "PhpPond\\": "src/" }
+        "psr-4": { "PhpPond\\": "src/" }
     },
     "extra": {
         "branch-alias": {
