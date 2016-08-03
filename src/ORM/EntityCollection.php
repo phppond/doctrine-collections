@@ -1,10 +1,12 @@
 <?php
+
 namespace PhpPond\ORM;
 
 
-use PhpPond\Common\LazyCollectionTrait;
-
 use Doctrine\Common\Collections\ArrayCollection;
+
+use PhpPond\Common\LazyCollectionTrait,
+    PhpPond\ORM\EntityRepositoryInterface as Repository;
 
 /**
  * Class EntityCollection
@@ -16,9 +18,7 @@ class EntityCollection extends ArrayCollection
 {
     use LazyCollectionTrait;
 
-    /**
-     * @var EntityRepository
-     */
+    /** @var Repository|EntityEntityRepository */
     private $repository;
 
     /** @var bool */
@@ -38,23 +38,8 @@ class EntityCollection extends ArrayCollection
         $numArgs = func_num_args();
         if ($numArgs >= 1) {
             $this->isInit = true;
+            $this->total = $this->count();
         }
-    }
-
-    /**
-     * @param EntityRepository $repository
-     */
-    public function setRepository(EntityRepository $repository)
-    {
-        $this->repository = $repository;
-    }
-
-    /**
-     * @return EntityRepository
-     */
-    protected function getRepository()
-    {
-        return $this->repository;
     }
 
     /**
@@ -69,6 +54,34 @@ class EntityCollection extends ArrayCollection
         $this->repository->criteria($criteria, $this);
 
         return $this;
+    }
+
+    /**
+     * @return integer
+     */
+    public function total()
+    {
+        if ($this->total === null) {
+            $this->total = $this->repository->getTotal($this);
+        }
+
+        return $this->total;
+    }
+
+    /**
+     * @param Repository|EntityEntityRepository $repository
+     */
+    public function setRepository(Repository $repository)
+    {
+        $this->repository = $repository;
+    }
+
+    /**
+     * @return Repository|EntityEntityRepository
+     */
+    protected function getRepository()
+    {
+        return $this->repository;
     }
 
     /**
@@ -95,18 +108,6 @@ class EntityCollection extends ArrayCollection
         }
         $this->isInit = true;
         $this->repository->findFor($this);
-    }
-
-    /**
-     * @return integer
-     */
-    public function total()
-    {
-        if ($this->total === null) {
-            $this->total = $this->repository->getTotal($this);
-        }
-
-        return $this->total;
     }
 
     /**

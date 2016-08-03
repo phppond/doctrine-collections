@@ -4,13 +4,16 @@ namespace PhpPond\ORM;
 
 
 use SplObjectStorage,
+    RuntimeException,
     InvalidArgumentException;
 
-
-use Doctrine\ORM\EntityRepository as DoctrineRepository,
-    Doctrine\ORM\EntityManagerInterface,
+use Doctrine\ORM\EntityManager,
+    Doctrine\ORM\EntityRepository as DoctrineRepository,
     Doctrine\ORM\Mapping\ClassMetadata,
     Doctrine\ORM\Tools\Pagination\Paginator;
+
+use PhpPond\Filters\FilterInterface,
+    PhpPond\Filters\SqlFilterCriteria;
 
 /**
  * Class DoctrineRepository
@@ -18,8 +21,11 @@ use Doctrine\ORM\EntityRepository as DoctrineRepository,
  * @package CreativeMedia\ORM
  * @author nick
  */
-class EntityRepository extends DoctrineRepository
+class EntityEntityRepository extends DoctrineRepository implements EntityRepositoryInterface
 {
+    /** @internal */
+    const ALIAS = 'entity';
+
     /**
      * @var SplObjectStorage|\Doctrine\ORM\QueryBuilder[]
      */
@@ -27,14 +33,16 @@ class EntityRepository extends DoctrineRepository
 
     /**
      * @var SplObjectStorage|Paginator[]
+     *
+     * TODO: pagination could depend on QueryBuilder instance
      */
     private $paginations;
 
     /**
-     * @param EntityManagerInterface $em
-     * @param ClassMetadata          $class
+     * @param EntityManager $em
+     * @param ClassMetadata $class
      */
-    public function __construct(EntityManagerInterface $em, ClassMetadata $class)
+    public function __construct($em, ClassMetadata $class)
     {
         parent::__construct($em, $class);
 
@@ -43,21 +51,35 @@ class EntityRepository extends DoctrineRepository
     }
 
     /**
-     * @param string $alias
+     * @param string|null $alias
+     * @param string|null $indexBy
      *
      * @return EntityCollection
      */
-    public function all($alias)
+    public function all($alias = null, $indexBy = null)
     {
         $collection = $this->createCollection();
+        $queryBuilder = $this->getQueryBuilderFor($collection);
+        empty($alias) AND $alias = static::ALIAS;
 
-        $this->getQueryBuilderFor($collection)
-            ->select($alias)
-            ->from($this->getEntityName(), $alias);
+        $queryBuilder->select($alias);
+        $queryBuilder->from($this->getEntityName(), $alias, $indexBy);
 
         return $collection;
     }
 
+    /**
+     * @param FilterInterface $filter
+     *
+     * @return EntityCollection
+     */
+    public function findByFilter(FilterInterface $filter)
+    {
+        $collection = $this->all();
+        $this->applyFilter($filter, $collection);
+
+        return $collection;
+    }
 
     /**
      * @param EntityCollection $collection
@@ -102,6 +124,39 @@ class EntityRepository extends DoctrineRepository
     public function criteria(CriteriaInterface $criteria, EntityCollection $collection)
     {
         $criteria->apply($this->getQueryBuilderFor($collection));
+    }
+
+    /**
+     * @param FilterInterface  $filter
+     * @param EntityCollection $collection
+     *
+     * @return EntityCollection
+     *
+     * TODO: do we want EntityCollection::filterBy(FilterInterface $filter) ??!
+     *       if "yes" then this method could be "public" and called from EntityCollection
+     */
+    protected function applyFilter(FilterInterface $filter, EntityCollection $collection)
+    {
+        $criteria = new SqlFilterCriteria($filter, $this->getFilterProperties($filter));
+        $collection->criteria($criteria);
+
+        return $collection;
+    }
+
+    /**
+     * @param FilterInterface $filter
+     *
+     * @return array
+     *
+     * @throws RuntimeException
+     */
+    protected function getFilterProperties(FilterInterface $filter)
+    {
+        if (count($filter->getConditions()) === 0) {
+            return [];
+        }
+
+        throw new RuntimeException('please define filter properties');
     }
 
     /**
