@@ -39,7 +39,7 @@ class SqlFilterCriteria implements CriteriaInterface
      *
      * @return void
      */
-    public function apply(QueryBuilder $queryBuilder)
+    public function apply($queryBuilder)
     {
         $compiler = new SqlFilterCompiler();
         // @codingStandardsIgnoreStart

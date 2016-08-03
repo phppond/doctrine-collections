@@ -18,5 +18,5 @@ interface CriteriaInterface
      *
      * @return mixed
      */
-    public function apply(QueryBuilder $queryBuilder);
+    public function apply($queryBuilder);
 }
