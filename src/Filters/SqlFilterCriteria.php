@@ -5,7 +5,8 @@ namespace PhpPond\Filters;
 
 use Doctrine\ORM\QueryBuilder;
 
-use PhpPond\ORM\CriteriaInterface;
+use PhpPond\Interfaces\FilterInterface,
+    PhpPond\Interfaces\CriteriaInterface;
 
 /**
  * Class OrmFilterCriteria

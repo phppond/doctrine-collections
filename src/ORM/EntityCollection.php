@@ -6,7 +6,9 @@ namespace PhpPond\ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 
 use PhpPond\Common\LazyCollectionTrait,
-    PhpPond\ORM\EntityRepositoryInterface as Repository;
+    PhpPond\Interfaces\FilterInterface,
+    PhpPond\Interfaces\CriteriaInterface,
+    PhpPond\Interfaces\EntityRepositoryInterface as Repository;
 
 /**
  * Class EntityCollection
@@ -52,6 +54,18 @@ class EntityCollection extends ArrayCollection
     public function criteria(CriteriaInterface $criteria)
     {
         $this->repository->criteria($criteria, $this);
+
+        return $this;
+    }
+
+    /**
+     * @param FilterInterface $filter
+     *
+     * @return $this
+     */
+    public function filterBy(FilterInterface $filter)
+    {
+        $this->repository->filterBy($filter, $this);
 
         return $this;
     }

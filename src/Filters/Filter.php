@@ -5,6 +5,8 @@ namespace PhpPond\Filters;
 
 use InvalidArgumentException;
 
+use PhpPond\Interfaces\FilterInterface;
+
 /**
  * Class Filter
  *
@@ -17,6 +19,9 @@ use InvalidArgumentException;
  */
 abstract class Filter implements FilterInterface
 {
+
+    const ORDER_ASC = true;
+    const ORDER_DESC = false;
 
     /** @var int */
     private $start;
@@ -146,8 +151,9 @@ abstract class Filter implements FilterInterface
     }
 
     /**
-     * Set a property to order the result set by. This method should be able to be called more than once
-     * and append the ordering to the list retrieved by getOrderings()
+     * Set a property to order the result set by. This method should be
+     * able to be called more than once * and append the ordering to the
+     * list retrieved by getOrderings()
      *
      * @param string  $property
      * @param boolean $isAscending

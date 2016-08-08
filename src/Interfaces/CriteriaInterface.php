@@ -1,6 +1,6 @@
 <?php
 
-namespace PhpPond\ORM;
+namespace PhpPond\Interfaces;
 
 
 use Doctrine\ORM\QueryBuilder;
@@ -8,7 +8,7 @@ use Doctrine\ORM\QueryBuilder;
 /**
  * Interface CriteriaInterface
  *
- * @package PhpPond\ORM
+ * @package PhpPond\Interfaces
  * @author nick
  */
 interface CriteriaInterface

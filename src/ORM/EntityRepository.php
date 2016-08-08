@@ -13,7 +13,8 @@ use Doctrine\ORM\EntityManager,
     Doctrine\ORM\Tools\Pagination\Paginator;
 
 use PhpPond\Filters\FilterInterface,
-    PhpPond\Filters\SqlFilterCriteria;
+    PhpPond\Filters\SqlFilterCriteria,
+    PhpPond\Interfaces\EntityRepositoryInterface;
 
 /**
  * Class DoctrineRepository
@@ -76,7 +77,7 @@ class EntityEntityRepository extends DoctrineRepository implements EntityReposit
     public function findByFilter(FilterInterface $filter)
     {
         $collection = $this->all();
-        $this->applyFilter($filter, $collection);
+        $this->filterBy($filter, $collection);
 
         return $collection;
     }
@@ -131,11 +132,8 @@ class EntityEntityRepository extends DoctrineRepository implements EntityReposit
      * @param EntityCollection $collection
      *
      * @return EntityCollection
-     *
-     * TODO: do we want EntityCollection::filterBy(FilterInterface $filter) ??!
-     *       if "yes" then this method could be "public" and called from EntityCollection
      */
-    protected function applyFilter(FilterInterface $filter, EntityCollection $collection)
+    public function filterBy(FilterInterface $filter, EntityCollection $collection)
     {
         $criteria = new SqlFilterCriteria($filter, $this->getFilterProperties($filter));
         $collection->criteria($criteria);

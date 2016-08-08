@@ -1,6 +1,6 @@
 <?php
 
-namespace PhpPond\Filters;
+namespace PhpPond\Interfaces;
 
 
 /**

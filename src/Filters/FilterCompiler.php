@@ -5,6 +5,8 @@ namespace PhpPond\Filters;
 
 use InvalidArgumentException;
 
+use PhpPond\Interfaces\FilterCompilerInterface;
+
 /**
  * Class FilterCompiler
  *
@@ -57,6 +59,105 @@ abstract class FilterCompiler implements FilterCompilerInterface
         $this->compileFilterConditions($filter);
         $this->compileFilterOrderings($filter);
         $this->compileFilterLimit($filter);
+    }
+
+    /**
+     * Return an array of key/value pairs to bind to the prepared query
+     * array(array(key,value))
+     *
+     * @return array<array<string>>
+     */
+    public function getParameters()
+    {
+        return $this->parameters;
+    }
+
+    /**
+     * @param boolean $isSkip
+     */
+    public function setSkipMissingProperties($isSkip)
+    {
+        $this->skipMissingProperties = $isSkip;
+    }
+
+    /**
+     * @param string $prefix
+     */
+    public function setParameterPrefix($prefix = 'p')
+    {
+        $this->parameterPrefix = $prefix;
+    }
+
+    /**
+     * Returns the select fields as a comma-separated string
+     *
+     * @param bool $withKeyword
+     *
+     * @return string
+     */
+    public function getSelect($withKeyword = true)
+    {
+        if (empty($this->select)) {
+            return '';
+        }
+
+        return $withKeyword ? 'SELECT ' . implode(', ', $this->select) : $this->select;
+    }
+
+    /**
+     * @param boolean $withKeyword
+     *
+     * @return string The compiled query which can be run to get a count of the number of rows
+     */
+    public function getWhere($withKeyword = true)
+    {
+        if (empty($this->where)) {
+            return '';
+        }
+
+        return $withKeyword ? 'WHERE ' . $this->where : $this->where;
+    }
+
+    /**
+     * @param bool $withKeyword
+     *
+     * @return string
+     */
+    public function getOrder($withKeyword = true)
+    {
+        if (empty($this->order)) {
+            return '';
+        }
+
+        return $withKeyword ? 'ORDER BY ' . $this->order : $this->order;
+    }
+
+    /**
+     * @param bool $withKeyword
+     *
+     * @return string
+     */
+    public function getLimit($withKeyword = true)
+    {
+        if (empty($this->limit)) {
+            return '';
+        }
+
+        return $withKeyword ? 'LIMIT ' . $this->limit : $this->limit;
+    }
+
+    /**
+     * @param bool $withKeyword
+     *
+     * @return string
+     */
+    public function getHaving($withKeyword = true)
+    {
+        if (empty($this->having)) {
+            return '';
+        }
+
+        return $withKeyword ? 'HAVING ' . $this->having : $this->having;
     }
 
     /**
@@ -170,110 +271,11 @@ abstract class FilterCompiler implements FilterCompilerInterface
     }
 
     /**
-     * @param boolean $isSkip
-     */
-    public function setSkipMissingProperties($isSkip)
-    {
-        $this->skipMissingProperties = $isSkip;
-    }
-
-    /**
-     * @param string $prefix
-     */
-    public function setParameterPrefix($prefix = 'p')
-    {
-        $this->parameterPrefix = $prefix;
-    }
-
-    /**
      * @return string
      */
-    public function getParameterPrefix()
+    protected function getParameterPrefix()
     {
         return $this->parameterPrefix;
-    }
-
-    /**
-     * Returns the select fields as a comma-separated string
-     *
-     * @param bool $withKeyword
-     *
-     * @return string
-     */
-    public function getSelect($withKeyword = true)
-    {
-        if (empty($this->select)) {
-            return '';
-        }
-
-        return $withKeyword ? 'SELECT ' . implode(', ', $this->select) : $this->select;
-    }
-
-    /**
-     * @param boolean $withKeyword
-     *
-     * @return string The compiled query which can be run to get a count of the number of rows
-     */
-    public function getWhere($withKeyword = true)
-    {
-        if (empty($this->where)) {
-            return '';
-        }
-
-        return $withKeyword ? 'WHERE ' . $this->where : $this->where;
-    }
-
-    /**
-     * @param bool $withKeyword
-     *
-     * @return string
-     */
-    public function getOrder($withKeyword = true)
-    {
-        if (empty($this->order)) {
-            return '';
-        }
-
-        return $withKeyword ? 'ORDER BY ' . $this->order : $this->order;
-    }
-
-    /**
-     * @param bool $withKeyword
-     *
-     * @return string
-     */
-    public function getLimit($withKeyword = true)
-    {
-        if (empty($this->limit)) {
-            return '';
-        }
-
-        return $withKeyword ? 'LIMIT ' . $this->limit : $this->limit;
-    }
-
-    /**
-     * @param bool $withKeyword
-     *
-     * @return string
-     */
-    public function getHaving($withKeyword = true)
-    {
-        if (empty($this->having)) {
-            return '';
-        }
-
-        return $withKeyword ? 'HAVING ' . $this->having : $this->having;
-    }
-
-    /**
-     * Return an array of key/value pairs to bind to the prepared query
-     * array(array(key,value))
-     *
-     * @return array<array<string>>
-     */
-    public function getParameters()
-    {
-        return $this->parameters;
     }
 
     /**
@@ -465,7 +467,7 @@ abstract class FilterCompiler implements FilterCompilerInterface
      *
      * @throws InvalidArgumentException
      */
-    public function compileOrdering($property, $isAscending)
+    protected function compileOrdering($property, $isAscending)
     {
         $mappedName = $this->getMappedProperty($property);
         $this->appendOrdering($mappedName, $isAscending);
@@ -532,14 +534,6 @@ abstract class FilterCompiler implements FilterCompilerInterface
         $value = str_replace('*', '%', $value);
 
         return $this->pushParameter($value);
-    }
-
-    /**
-     * @param string $field
-     */
-    public function addSelectField($field)
-    {
-        $this->select[] = $field;
     }
 
     /**
@@ -610,16 +604,5 @@ abstract class FilterCompiler implements FilterCompilerInterface
         $where .= ') ';
 
         return $where;
-    }
-
-    /**
-     * @param boolean  $isAscending
-     * @param string[] $properties
-     */
-    protected function compileTextGroupOrdering($isAscending, array $properties)
-    {
-        foreach ($properties as $property) {
-            $this->compileOrdering($property, $isAscending);
-        }
     }
 }

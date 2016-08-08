@@ -1,12 +1,12 @@
 <?php
 
-namespace PhpPond\Filters;
+namespace PhpPond\Interfaces;
 
 
 /**
  * Interface FilterInterface
  *
- * @package PhpPondFilters\Filters
+ * @package PhpPondFilters\Interfaces
  */
 interface FilterInterface
 {
@@ -15,6 +15,8 @@ interface FilterInterface
      * get $qb->select(....)
      *
      * @return mixed
+     *
+     * @deprecated use with caution
      */
     public function getSelect();
 

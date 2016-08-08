@@ -1,9 +1,9 @@
 <?php
 
-namespace PhpPond\ORM;
+namespace PhpPond\Interfaces;
 
 
-use PhpPond\Filters\FilterInterface;
+use PhpPond\ORM\EntityCollection;
 
 /**
  * Interface RepositoryInterface
