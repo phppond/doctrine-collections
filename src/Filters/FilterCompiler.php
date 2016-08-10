@@ -5,6 +5,7 @@ namespace PhpPond\Filters;
 
 use InvalidArgumentException;
 
+use PhpPond\Interfaces\FilterInterface;
 use PhpPond\Interfaces\FilterCompilerInterface;
 
 /**
@@ -89,78 +90,6 @@ abstract class FilterCompiler implements FilterCompilerInterface
     }
 
     /**
-     * Returns the select fields as a comma-separated string
-     *
-     * @param bool $withKeyword
-     *
-     * @return string
-     */
-    public function getSelect($withKeyword = true)
-    {
-        if (empty($this->select)) {
-            return '';
-        }
-
-        return $withKeyword ? 'SELECT ' . implode(', ', $this->select) : $this->select;
-    }
-
-    /**
-     * @param boolean $withKeyword
-     *
-     * @return string The compiled query which can be run to get a count of the number of rows
-     */
-    public function getWhere($withKeyword = true)
-    {
-        if (empty($this->where)) {
-            return '';
-        }
-
-        return $withKeyword ? 'WHERE ' . $this->where : $this->where;
-    }
-
-    /**
-     * @param bool $withKeyword
-     *
-     * @return string
-     */
-    public function getOrder($withKeyword = true)
-    {
-        if (empty($this->order)) {
-            return '';
-        }
-
-        return $withKeyword ? 'ORDER BY ' . $this->order : $this->order;
-    }
-
-    /**
-     * @param bool $withKeyword
-     *
-     * @return string
-     */
-    public function getLimit($withKeyword = true)
-    {
-        if (empty($this->limit)) {
-            return '';
-        }
-
-        return $withKeyword ? 'LIMIT ' . $this->limit : $this->limit;
-    }
-
-    /**
-     * @param bool $withKeyword
-     *
-     * @return string
-     */
-    public function getHaving($withKeyword = true)
-    {
-        if (empty($this->having)) {
-            return '';
-        }
-
-        return $withKeyword ? 'HAVING ' . $this->having : $this->having;
-    }
-
-    /**
      * @param array $propertyMap
      */
     protected function reset(array $propertyMap)
@@ -186,7 +115,6 @@ abstract class FilterCompiler implements FilterCompilerInterface
             && !array_key_exists($property, $this->propertyMap);
     }
 
-
     /**
      * @param FilterInterface $filter
      */
@@ -196,42 +124,20 @@ abstract class FilterCompiler implements FilterCompilerInterface
             if ($this->isSkipProperty($property)) {
                 continue;
             }
-            $this->addSelect($property, $alias);
+            $mapped = $this->getMappedProperty($property);
+            $this->select[] = $this->compileSelect($mapped, $alias);
         }
     }
 
     /**
-     * @param string $property
+     * @param string $mapped
      * @param string $alias
+     *
+     * @return string
      */
-    protected function addSelect($property, $alias)
+    protected function compileSelect($mapped, $alias)
     {
-        $select = $this->getMappedProperty($property);
-        $this->select[$alias] = $select;
-    }
-
-    /**
-     * @param FilterInterface $filter
-     */
-    protected function compileFilterConditions(FilterInterface $filter)
-    {
-        $conjunction = '';
-
-        foreach ($filter->getConditions() as $condition) {
-            if ($this->isSkipProperty($condition->getPropertyName())) {
-                continue;
-            }
-
-            if ($condition->isGroup()) {
-                $this->compileGroup($condition, $conjunction);
-                if (count($condition->getConditions())) {
-                    $conjunction = ' AND ';
-                }
-            } else {
-                $this->compileCondition($condition, $conjunction);
-                $conjunction = ' AND ';
-            }
-        }
+        return $mapped . ' AS ' . $alias;
     }
 
     /**
@@ -245,9 +151,28 @@ abstract class FilterCompiler implements FilterCompilerInterface
             if ($this->isSkipProperty($property)) {
                 continue;
             }
-
-            $this->compileOrdering($property, $isAscending);
+            $mapped = $this->getMappedProperty($property);
+            $this->order[] = $this->compileOrdering($mapped, $isAscending);
         }
+    }
+
+    /**
+     * @param string $mapped
+     * @param bool   $isAscending
+     *
+     * @return string
+     */
+    protected function compileOrdering($mapped, $isAscending)
+    {
+        return $mapped . ' ' . ($isAscending ? 'ASC' : 'DESC');
+    }
+
+    /**
+     * @return array
+     */
+    public function getOrder()
+    {
+        return $this->order;
     }
 
     /**
@@ -279,10 +204,34 @@ abstract class FilterCompiler implements FilterCompilerInterface
     }
 
     /**
+     * @param FilterInterface $filter
+     */
+    protected function compileFilterConditions(FilterInterface $filter)
+    {
+        $conjunction = '';
+
+        foreach ($filter->getConditions() as $condition) {
+            if ($this->isSkipProperty($condition->getPropertyName())) {
+                continue;
+            }
+
+            if ($condition->isGroup()) {
+                $this->compileFilterGroupCondition($condition, $conjunction);
+                if (count($condition->getConditions())) {
+                    $conjunction = ' AND ';
+                }
+            } else {
+                $this->compileFilterCondition($condition, $conjunction);
+                $conjunction = ' AND ';
+            }
+        }
+    }
+
+    /**
      * @param FilterCondition $condition
      * @param string          $conjunction
      */
-    protected function compileGroup(FilterCondition $condition, $conjunction)
+    protected function compileFilterGroupCondition(FilterCondition $condition, $conjunction)
     {
         if (!count($condition->getConditions())) {
             return;
@@ -291,7 +240,7 @@ abstract class FilterCompiler implements FilterCompilerInterface
         $this->where .= $conjunction . '(';
         $or = '';
         foreach ($condition->getConditions() as $orCondition) {
-            $this->compileCondition($orCondition, $or);
+            $this->compileFilterCondition($orCondition, $or);
             $or = ' OR ';
         }
         $this->where .= ')';
@@ -303,7 +252,7 @@ abstract class FilterCompiler implements FilterCompilerInterface
      *
      * @throws InvalidArgumentException
      */
-    protected function compileCondition(FilterCondition $condition, $conjunction)
+    protected function compileFilterCondition(FilterCondition $condition, $conjunction)
     {
         $where = $this->compileInnerCondition($condition);
 
@@ -327,105 +276,105 @@ abstract class FilterCompiler implements FilterCompilerInterface
      */
     protected function compileInnerCondition(FilterCondition $condition)
     {
-        $mappedPropertyName = $this->getMappedProperty($condition->getPropertyName());
+        $mapped = $this->getMappedProperty($condition->getPropertyName());
 
-        return $this->compileMappedCondition($condition, $mappedPropertyName);
+        return $this->compileMappedCondition($condition, $mapped);
     }
 
     /**
      * @param FilterCondition $condition
-     * @param string          $mappedName
+     * @param string          $mapped
      *
      * @return string
      *
      * @throws InvalidArgumentException
      */
-    protected function compileMappedCondition(FilterCondition $condition, $mappedName)
+    protected function compileMappedCondition(FilterCondition $condition, $mapped)
     {
 
         $value = $condition->getValue();
         $where = '';
 
         if ($condition->isLike()) {
-            $where .= $this->compileLikeCondition($mappedName, $value);
+            $where .= $this->compileLikeCondition($mapped, $value);
         }
 
         if ($condition->isEquals()) {
-            $where .= $this->compileEqualsCondition($mappedName, $value);
+            $where .= $this->compileEqualsCondition($mapped, $value);
         }
 
         if ($condition->isGT()) {
-            $where .= $this->compileScalarCondition($mappedName, '>', $value);
+            $where .= $this->compileScalarCondition($mapped, ' > ', $value);
         }
 
         if ($condition->isGTE()) {
-            $where .= $this->compileScalarCondition($mappedName, '>=', $value);
+            $where .= $this->compileScalarCondition($mapped, ' >= ', $value);
         }
 
         if ($condition->isLT()) {
-            $where .= $this->compileScalarCondition($mappedName, '<', $value);
+            $where .= $this->compileScalarCondition($mapped, ' < ', $value);
         }
 
         if ($condition->isLTE()) {
-            $where .= $this->compileScalarCondition($mappedName, '<=', $value);
+            $where .= $this->compileScalarCondition($mapped, ' <= ', $value);
         }
 
         if ($condition->isIn()) {
-            $where .= $this->compileInCondition($mappedName, (array) $value);
+            $where .= $this->compileInCondition($mapped, (array) $value);
         }
 
         return $where;
     }
 
     /**
-     * @param string $mappedName
+     * @param string $mapped
      * @param mixed  $value
      *
      * @return string
      *
      * @throws InvalidArgumentException
      */
-    protected function compileLikeCondition($mappedName, $value)
+    protected function compileLikeCondition($mapped, $value)
     {
         if ($value === null) {
             throw new InvalidArgumentException('NULL is not allowed for a LIKE filter');
         }
 
-        return $mappedName . ' LIKE ' . $this->pushLikeParameter($value);
+        return $mapped . ' LIKE ' . $this->pushLikeParameter($value);
     }
 
     /**
-     * @param string $mappedName
+     * @param string $mapped
      * @param mixed  $value
      *
      * @return string
      *
      * @throws InvalidArgumentException
      */
-    protected function compileEqualsCondition($mappedName, $value)
+    protected function compileEqualsCondition($mapped, $value)
     {
         $where = '';
         if ($value === null) {
-            $where .= $mappedName . ' IS NULL ';
+            $where .= $mapped . ' IS NULL ';
         } else {
-            $where .= $this->compileScalarCondition($mappedName, '=', $value);
+            $where .= $this->compileScalarCondition($mapped, '=', $value);
         }
 
         return $where;
     }
 
     /**
-     * @param string $mappedName
+     * @param string $mapped
      * @param array  $value
      *
      * @return string
      *
      * @throws InvalidArgumentException
      */
-    protected function compileInCondition($mappedName, array $value)
+    protected function compileInCondition($mapped, array $value)
     {
         $where = '';
-        $where .= $mappedName . ' IN (';
+        $where .= $mapped . ' IN (';
         $sComma = '';
         foreach ($value as $mInValue) {
             $where .= $sComma . $this->pushParameter($mInValue);
@@ -437,7 +386,7 @@ abstract class FilterCompiler implements FilterCompilerInterface
     }
 
     /**
-     * @param string $mappedName
+     * @param string $mapped
      * @param string $condition
      * @param mixed  $value
      *
@@ -445,7 +394,7 @@ abstract class FilterCompiler implements FilterCompilerInterface
      *
      * @throws InvalidArgumentException
      */
-    protected function compileScalarCondition($mappedName, $condition, $value)
+    protected function compileScalarCondition($mapped, $condition, $value)
     {
         if ($value === null) {
             throw new InvalidArgumentException('NULL is not allowed for a "' . $condition . '" filter');
@@ -458,34 +407,7 @@ abstract class FilterCompiler implements FilterCompilerInterface
         }
         */
 
-        return $mappedName . ' ' . $condition . ' ' . $this->pushParameter($value);
-    }
-
-    /**
-     * @param string $property
-     * @param bool   $isAscending
-     *
-     * @throws InvalidArgumentException
-     */
-    protected function compileOrdering($property, $isAscending)
-    {
-        $mappedName = $this->getMappedProperty($property);
-        $this->appendOrdering($mappedName, $isAscending);
-    }
-
-    /**
-     * @param string  $mappedName
-     * @param boolean $isAscending
-     *
-     * TODO: put all orderings in array
-     */
-    protected function appendOrdering($mappedName, $isAscending)
-    {
-        $comma = '';
-        if (!empty($this->order)) {
-            $comma = ',';
-        }
-        $this->order .= $comma . $mappedName . ' ' . ($isAscending ? 'ASC' : 'DESC');
+        return $mapped . ' ' . $condition . ' ' . $this->pushParameter($value);
     }
 
     /**
@@ -536,73 +458,4 @@ abstract class FilterCompiler implements FilterCompilerInterface
         return $this->pushParameter($value);
     }
 
-    /**
-     * @param string $having
-     */
-    public function addHaving($having)
-    {
-        if (!empty($this->having)) {
-            $this->having .= ' AND ';
-        }
-        $this->having .= $having;
-    }
-
-    /**
-     * If you have a pseudo-property which maps to multiple real columns
-     * then you can use this method to compile the condition
-     * Only EQUALS or LIKE can be used with grouped columns
-     *
-     * @param FilterCondition $condition
-     * @param string[]        $properties
-     *
-     * @return string
-     *
-     * @throws InvalidArgumentException
-     */
-    public function compileTextGroupCondition(FilterCondition $condition, array $properties)
-    {
-        $mappedProperties = array();
-        foreach ($properties as $property) {
-            $mappedProperties[] = $this->getMappedProperty($property);
-        }
-
-        return $this->_compileTextGroupCondition($condition, $mappedProperties);
-    }
-
-    /**
-     * If you have a pseudo-property which maps to multiple real columns
-     * then you can use this method to compile the condition
-     * Only EQUALS or LIKE can be used with grouped columns
-     *
-     * @param FilterCondition $condition
-     * @param string[]        $mappedProperties
-     *
-     * @return string
-     *
-     * @throws InvalidArgumentException
-     */
-    protected function _compileTextGroupCondition(FilterCondition $condition, array $mappedProperties)
-    {
-        // We'll allow equals or like for this condition
-        if (!($condition->isEquals() || $condition->isLike())) {
-            throw new InvalidArgumentException('Group filters only allowed with EQUALS or LIKE');
-        }
-        $value = $condition->getValue();
-
-        $where = ' (';
-        $or = '';
-
-        foreach ($mappedProperties as $property) {
-            if ($condition->isEquals()) {
-                $where .= $or . $property . '=' . $this->pushParameter($value);
-            } else {
-                $where .= $or . $property . ' LIKE (' . $this->pushLikeParameter($value) . ')';
-            }
-            $or = ' OR ';
-        }
-
-        $where .= ') ';
-
-        return $where;
-    }
 }

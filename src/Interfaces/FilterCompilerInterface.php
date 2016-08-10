@@ -28,7 +28,7 @@ interface FilterCompilerInterface
     public function getWhere();
 
     /**
-     * @return string
+     * @return string|mixed
      */
     public function getOrder();
 

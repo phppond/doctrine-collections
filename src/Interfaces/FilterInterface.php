@@ -1,6 +1,7 @@
 <?php
 
 namespace PhpPond\Interfaces;
+use PhpPond\Filters\FilterCondition;
 
 
 /**
